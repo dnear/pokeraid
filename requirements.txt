@@ -1,4 +1,1 @@
-aiogram==3.0.0b7
-aiosqlite
-python-dotenv
-uvloop
+requests
