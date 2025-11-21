@@ -1,3 +1,4 @@
+import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
@@ -12,10 +13,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
-# Token bot Anda
-import os
-BOT_TOKEN = os.environ['BOT_TOKEN']
 
 # Inisialisasi database dengan error handling
 def init_db():
@@ -33,7 +30,7 @@ def init_db():
                   team_color TEXT,
                   registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
-    # Tabel untuk raid aktif - dengan semua kolom yang diperlukan
+    # Tabel untuk raid aktif
     c.execute('''CREATE TABLE IF NOT EXISTS raids
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   raid_id TEXT UNIQUE,
@@ -51,22 +48,6 @@ def init_db():
                   user_id INTEGER,
                   status TEXT,
                   joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
-    # Cek dan tambahkan kolom yang missing
-    try:
-        c.execute("ALTER TABLE raids ADD COLUMN is_boosted BOOLEAN DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass  # Kolom sudah ada
-    
-    try:
-        c.execute("ALTER TABLE raids ADD COLUMN invite_time INTEGER DEFAULT 5")
-    except sqlite3.OperationalError:
-        pass  # Kolom sudah ada
-    
-    try:
-        c.execute("ALTER TABLE raids ADD COLUMN initiator_id INTEGER")
-    except sqlite3.OperationalError:
-        pass  # Kolom sudah ada
     
     conn.commit()
     conn.close()
@@ -381,6 +362,7 @@ Enjoy the raids! 😊
     await update.message.reply_text(admin_text)
 
 async def newraid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conn = None
     try:
         # Cek registrasi user
         user = update.effective_user
@@ -396,7 +378,6 @@ async def newraid(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Use /myprofile to check your registration status.\n"
                 "Use /help for registration instructions."
             )
-            conn.close()
             return
         
         if len(context.args) < 3:
@@ -407,7 +388,6 @@ async def newraid(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "⭕️ E.g.: /newraid Heatran yes 5\n\n"
                 "💡 **Example:** `/newraid Pikachu no 5`"
             )
-            conn.close()
             return
         
         pokemon_name = context.args[0].capitalize()
@@ -422,7 +402,6 @@ async def newraid(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "• `/newraid Heatran yes 5`\n"
                 "• `/newraid Pikachu no 5`"
             )
-            conn.close()
             return
         
         # Validasi time - hanya ambil angka pertama
@@ -435,7 +414,6 @@ async def newraid(update: Update, context: ContextTypes.DEFAULT_TYPE):
             invite_time = int(time_numbers[0])
             if invite_time <= 0 or invite_time > 60:
                 await update.message.reply_text("❌ Time must be between 1 and 60 minutes!")
-                conn.close()
                 return
                 
         except ValueError:
@@ -445,7 +423,6 @@ async def newraid(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "• `/newraid Heatran yes 5`\n"
                 "• `/newraid Pikachu no 10`"
             )
-            conn.close()
             return
         
         # Konversi boosted ke boolean
@@ -509,14 +486,12 @@ Use buttons below to join the raid!
     except sqlite3.IntegrityError:
         await update.message.reply_text("❌ Raid already exists! Please try again.")
         logger.error("Raid already exists")
-    except sqlite3.Error as e:
-        await update.message.reply_text("❌ Database error! Please contact admin.")
-        logger.error(f"Database error in newraid: {e}")
     except Exception as e:
         await update.message.reply_text("❌ Error creating raid! Please check the format and try again.")
         logger.error(f"Unexpected error in newraid: {e}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -719,31 +694,47 @@ def main():
     # Inisialisasi database
     init_db()
     
-    # Gunakan token bot Anda
-    application = Application.builder().token(BOT_TOKEN).build()
+    # Gunakan token dari environment variable
+    BOT_TOKEN = os.environ.get('BOT_TOKEN', '8222235353:AAHycT7I4AypcwFfrl730NoOhzqtDEx-sDc')
     
-    # Command handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("raid", raid_example))
-    application.add_handler(CommandHandler("rules", rules))
-    application.add_handler(CommandHandler("nickname", nickname))
-    application.add_handler(CommandHandler("gamer", gamer))
-    application.add_handler(CommandHandler("newraid", newraid))
-    application.add_handler(CommandHandler("list", list_raids))
-    application.add_handler(CommandHandler("myraids", my_raids))
-    application.add_handler(CommandHandler("myprofile", myprofile))
-    application.add_handler(CommandHandler("adminlist", adminlist))
+    if not BOT_TOKEN:
+        print("❌ ERROR: BOT_TOKEN environment variable not set!")
+        print("Please set BOT_TOKEN in Railway environment variables")
+        return
     
-    # Button handler
-    application.add_handler(CallbackQueryHandler(button_handler))
-    
-    # Message handler untuk mencegah pesan biasa di group
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Start bot
-    print("Bot started successfully with enhanced features!")
-    application.run_polling()
+    try:
+        application = Application.builder().token(BOT_TOKEN).build()
+        
+        # Command handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(CommandHandler("raid", raid_example))
+        application.add_handler(CommandHandler("rules", rules))
+        application.add_handler(CommandHandler("nickname", nickname))
+        application.add_handler(CommandHandler("gamer", gamer))
+        application.add_handler(CommandHandler("newraid", newraid))
+        application.add_handler(CommandHandler("list", list_raids))
+        application.add_handler(CommandHandler("myraids", my_raids))
+        application.add_handler(CommandHandler("myprofile", myprofile))
+        application.add_handler(CommandHandler("adminlist", adminlist))
+        
+        # Button handler
+        application.add_handler(CallbackQueryHandler(button_handler))
+        
+        # Message handler untuk mencegah pesan biasa di group
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        
+        # Start bot
+        print("🤖 Bot starting on Railway...")
+        print("✅ Database initialized")
+        print("🔄 Starting polling...")
+        print(f"✅ Bot is running with token: {BOT_TOKEN[:10]}...")
+        
+        application.run_polling()
+        
+    except Exception as e:
+        print(f"❌ Failed to start bot: {e}")
+        logging.error(f"Bot startup failed: {e}")
 
 if __name__ == '__main__':
     main()
