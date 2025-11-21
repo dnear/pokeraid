@@ -1,4 +1,3 @@
-import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
@@ -13,6 +12,9 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# Token bot Anda
+BOT_TOKEN = '8222235353:AAHycT7I4AypcwFfrl730NoOhzqtDEx-sDc'
 
 # Inisialisasi database dengan error handling
 def init_db():
@@ -694,14 +696,6 @@ def main():
     # Inisialisasi database
     init_db()
     
-    # Gunakan token dari environment variable
-    BOT_TOKEN = os.environ.get('BOT_TOKEN', '8222235353:AAHycT7I4AypcwFfrl730NoOhzqtDEx-sDc')
-    
-    if not BOT_TOKEN:
-        print("❌ ERROR: BOT_TOKEN environment variable not set!")
-        print("Please set BOT_TOKEN in Railway environment variables")
-        return
-    
     try:
         application = Application.builder().token(BOT_TOKEN).build()
         
@@ -725,10 +719,11 @@ def main():
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
         # Start bot
-        print("🤖 Bot starting on Railway...")
+        print("🤖 Pokemon Go Raid Bot Starting...")
         print("✅ Database initialized")
         print("🔄 Starting polling...")
-        print(f"✅ Bot is running with token: {BOT_TOKEN[:10]}...")
+        print("📍 Running on Termux")
+        print("🚀 Bot is ready!")
         
         application.run_polling()
         

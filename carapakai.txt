@@ -1,0 +1,6 @@
+# Gunakan tmux atau nohup
+pkg install tmux
+tmux new -s pokemonbot
+python pokemon_raid_bot_termux.py
+# Tekan Ctrl+B, lalu D untuk detach
+# Untuk kembali: tmux attach -t pokemonbot
