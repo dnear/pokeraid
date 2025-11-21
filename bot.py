@@ -14,7 +14,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Token bot Anda
-BOT_TOKEN = '8222235353:AAHycT7I4AypcwFfrl730NoOhzqtDEx-sDc'
+import os
+BOT_TOKEN = os.environ['BOT_TOKEN']
 
 # Inisialisasi database dengan error handling
 def init_db():
